@@ -18,41 +18,36 @@ jobs:
     timeout-minutes: 15
     strategy:
       matrix:
-        os: [ubuntu-latest]
-        api-level: [23, 29]
-        target: [default, google_apis]
-        arch: [x86]
-        exclude:
-          - target: google_apis
-            api-level: 16
-          - target: google_apis
-            api-level: 23
-          - target: google_apis
-            api-level: 29
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
+            api-level: 23
+            target: default
+            arch: x86
+          - os: ubuntu-24.04
             api-level: 24
             target: playstore
             arch: x86
-          - os: ubuntu-latest
-            api-level: 30
-            target: aosp_atd
-            arch: x86
-          - os: macos-latest
+          - os: macos-15-intel
             api-level: 31
-            target: google_apis
+            target: default
             arch: x86_64
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             api-level: 34
             target: aosp_atd
             arch: x86_64
+          - os: ubuntu-latest
+            api-level: 35
+            target: google_apis
+            arch: x86_64
+          - os: ubuntu-latest
+            api-level: 34-ext10
+            target: android-automotive
+            arch: x86_64
+            system-image-api-level: 34-ext9
 
     steps:
     - name: checkout
-      uses: actions/checkout@v4
-
-    - name: validate gradle wrapper
-      uses: gradle/wrapper-validation-action@v2
+      uses: actions/checkout@v7
 
     - name: build, test and lint
       run: |
@@ -61,21 +56,21 @@ jobs:
         npm run lint
         npm test
 
-    - uses: actions/setup-java@v4
+    - uses: actions/setup-java@v5
       with:
         distribution: 'zulu'
-        java-version: 21
+        java-version: 25
 
-    - uses: actions/cache@v4
+    - uses: actions/cache@v6
       id: avd-cache
       with:
         path: |
           ~/.android/avd/*
           ~/.android/adb*
           ~/.android/debug.keystore
-        key: avd-${{ matrix.api-level }}-${{ matrix.os }}-${{ matrix.target }}
+        key: avd-${{ matrix.api-level }}-${{ matrix.os }}-${{ matrix.target }}-${{ matrix.arch }}
 
-    - uses: gradle/actions/setup-gradle@v3
+    - uses: gradle/actions/setup-gradle@v6
 
     - name: assemble tests
       working-directory: test-fixture
@@ -95,6 +90,7 @@ jobs:
         api-level: ${{ matrix.api-level }}
         target: ${{ matrix.target }}
         arch: ${{ matrix.arch }}
+        system-image-api-level: ${{ matrix.system-image-api-level }}
         profile: Galaxy Nexus
         cores: 2
         sdcard-path-or-size: 100M
@@ -112,6 +108,7 @@ jobs:
         api-level: ${{ matrix.api-level }}
         target: ${{ matrix.target }}
         arch: ${{ matrix.arch }}
+        system-image-api-level: ${{ matrix.system-image-api-level }}
         profile: Galaxy Nexus
         cores: 2
         ram-size: 2048M

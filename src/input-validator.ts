@@ -1,23 +1,15 @@
 export const MIN_API_LEVEL = 15;
-export const VALID_TARGETS: Array<string> = ['default', 'google_apis', 'aosp_atd', 'google_atd', 'google_apis_playstore', 'android-wear', 'android-wear-cn', 'android-tv', 'google-tv'];
 export const VALID_ARCHS: Array<string> = ['x86', 'x86_64', 'arm64-v8a'];
 export const VALID_CHANNELS: Array<string> = ['stable', 'beta', 'dev', 'canary'];
-export const PREVIEW_API_LEVELS: Array<string> = ['Tiramisu', 'UpsideDownCake', 'VanillaIceCream'];
+export const MIN_PORT = 5554;
+export const MAX_PORT = 5584;
 
-export function checkApiLevel(apiLevel: string): void {
-  if (PREVIEW_API_LEVELS.some((previewLevel) => apiLevel.startsWith(previewLevel))) return;
-  if (isNaN(Number(apiLevel)) || !Number.isInteger(Number(apiLevel))) {
-    throw new Error(`Unexpected API level: '${apiLevel}'.`);
-  }
-  if (Number(apiLevel) < MIN_API_LEVEL) {
-    throw new Error(`Minimum API level supported is ${MIN_API_LEVEL}.`);
-  }
-}
-
-export function checkTarget(target: string): void {
-  if (!VALID_TARGETS.includes(target)) {
-    throw new Error(`Value for input.target '${target}' is unknown. Supported options: ${VALID_TARGETS}.`);
-  }
+export function playstoreTargetSubstitution(target: string): string {
+  // "playstore" is an allowed shorthand for "google_apis_playstore" images
+  // this is idempotent - return same even if run multiple times on same target
+  if (target === 'playstore') return 'google_apis_playstore';
+  if (target === 'playstore_ps16k') return 'google_apis_playstore_ps16k';
+  return target;
 }
 
 export function checkArch(arch: string): void {
@@ -35,6 +27,15 @@ export function checkChannel(channel: string): void {
 export function checkForceAvdCreation(forceAvdCreation: string): void {
   if (!isValidBoolean(forceAvdCreation)) {
     throw new Error(`Input for input.force-avd-creation should be either 'true' or 'false'.`);
+  }
+}
+
+export function checkPort(port: number): void {
+  if (port < MIN_PORT || port > MAX_PORT) {
+    throw new Error(`Emulator port is outside of the supported port range [${MIN_PORT}, ${MAX_PORT}], was ${port}`);
+  }
+  if (port % 2 == 1) {
+    throw new Error(`Emulator port has to be even, was ${port}`);
   }
 }
 

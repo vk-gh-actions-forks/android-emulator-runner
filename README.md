@@ -12,7 +12,7 @@ This presents a challenge when running emulators on CI especially when running e
 
 ## Running hardware accelerated emulators on Linux runners
 
-GitHub's [larger Linux runners support running hardware accelerated emulators](https://github.blog/changelog/2023-02-23-hardware-accelerated-android-virtualization-on-actions-windows-and-linux-larger-hosted-runners/) which is [free for public GitHub repos](https://github.blog/2024-01-17-github-hosted-runners-double-the-power-for-open-source/). It is now recommended to use the **Ubuntu** (`ubuntu-latest`) runners which are 2-3 times faster than the **macOS** ones which are also a lot more expensive. Remember to enable KVM in your workflow before running this action:
+GitHub's [larger Linux runners support running hardware accelerated emulators](https://github.blog/changelog/2023-02-23-hardware-accelerated-android-virtualization-on-actions-windows-and-linux-larger-hosted-runners/). It is now recommended to use the **Ubuntu** (`ubuntu-latest`) runners which are 2-3 times faster than the **macOS** ones which are also a lot more expensive. Remember to enable KVM in your workflow before running this action:
 
 ```
 - name: Enable KVM group perms
@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Enable KVM
         run: |
@@ -76,7 +76,7 @@ jobs:
         target: [default, google_apis]
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Enable KVM
         run: |
@@ -90,7 +90,7 @@ jobs:
           api-level: ${{ matrix.api-level }}
           target: ${{ matrix.target }}
           arch: x86_64
-          profile: Nexus 6
+          profile: pixel_7_pro
           script: ./gradlew connectedCheck
 ```
 
@@ -102,7 +102,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Enable KVM
         run: |
@@ -119,10 +119,35 @@ jobs:
           script: ./gradlew connectedCheck
 ```
 
+If you need a specific [SDK Extensions](https://developer.android.com/guide/sdk-extensions) for the system image but not the platform:
+
+```yml
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v6
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: run tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          system-image-api-level: 34-ext9
+          target: android-automotive
+          script: ./gradlew connectedCheck
+```
+
 We can significantly reduce emulator startup time by setting up AVD snapshot caching:
 
-1. add a `gradle/actions/setup-gradle@v3` step for caching Gradle, more details see [#229](https://github.com/ReactiveCircus/android-emulator-runner/issues/229)
-2. add an `actions/cache@v4` step for caching the `avd`
+1. add a `gradle/actions/setup-gradle@v5` step for caching Gradle, more details see [#229](https://github.com/ReactiveCircus/android-emulator-runner/issues/229)
+2. add an `actions/cache@v5` step for caching the `avd`
 3. add a `reactivecircus/android-emulator-runner@v2` step to generate a clean snapshot - specify `emulator-options` without `no-snapshot`
 4. add another `reactivecircus/android-emulator-runner@v2` step to run your tests using existing AVD / snapshot - specify `emulator-options` with `no-snapshot-save`
 
@@ -135,7 +160,7 @@ jobs:
         api-level: [21, 23, 29]
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Enable KVM
         run: |
@@ -144,10 +169,10 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       - name: Gradle cache
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v5
         
       - name: AVD cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: avd-cache
         with:
           path: |
@@ -179,10 +204,11 @@ jobs:
 
 | **Input** | **Required** | **Default** | **Description** |
 |-|-|-|-|
-| `api-level` | Required | N/A | API level of the platform system image - e.g. 23 for Android Marshmallow, 29 for Android 10. **Minimum API level supported is 15**. |
-| `target` | Optional | `default` | Target of the system image - `default`, `google_apis`, `playstore`, `android-wear`, `android-wear-cn`, `android-tv`, `google-tv`, `aosp_atd` or `google_atd`. Note that `aosp_atd` and `google_atd` currently require the following: `api-level: 30`, `arch: x86` or `arch: arm64-v8` and `channel: canary`. |
+| `api-level` | Required | N/A | API level of the platform and system image - e.g. `23`, `33`, `35-ext15`, `Baklava`. **Minimum API level supported is 15**. |
+| `system-image-api-level` | Optional | same as `api-level` | API level of the system image - e.g. `34-ext10`, `35-ext15`. |
+| `target` | Optional | `default` | Target of the system image - e.g. `default`, `google_apis`, `google_apis_ps16k`, `google_apis_playstore`, `google_apis_playstore_ps16k`, `android-wear`, `android-wear-cn`, `android-tv`, `google-tv`, `aosp_atd`, `google_atd`, `android-automotive`, `android-automotive-playstore`, `android-desktop`. Please run `sdkmanager --list` to see the available targets. |
 | `arch` | Optional | `x86` | CPU architecture of the system image - `x86`, `x86_64` or `arm64-v8a`. Note that `x86_64` image is only available for API 21+. `arm64-v8a` images require Android 4.2+ and are limited to fewer API levels (e.g. 30). |
-| `profile` | Optional | N/A | Hardware profile used for creating the AVD - e.g. `Nexus 6`. For a list of all profiles available, run `avdmanager list device`. |
+| `profile` | Optional | N/A | Hardware profile id used for creating the AVD - e.g. `pixel_7_pro`. For a list of all profiles available, run `avdmanager list device`. |
 | `cores` | Optional | 2 | Number of cores to use for the emulator (`hw.cpu.ncore` in config.ini). |
 | `ram-size` | Optional | N/A | Size of RAM to use for this AVD, in KB or MB, denoted with K or M. - e.g. `2048M` |
 | `heap-size` | Optional | N/A | Heap size to use for this AVD, in KB or MB, denoted with K or M. - e.g. `512M` |
@@ -191,6 +217,7 @@ jobs:
 | `avd-name` | Optional | `test` | Custom AVD name used for creating the Android Virtual Device. |
 | `force-avd-creation` | Optional | `true` | Whether to force create the AVD by overwriting an existing AVD with the same name as `avd-name` - `true` or `false`. |
 | `emulator-boot-timeout` | Optional | `600` | Emulator boot timeout in seconds. If it takes longer to boot, the action would fail - e.g. `300` for 5 minutes. |
+| `emulator-port` | Optional | `5554` | Emulator port to use. Allows to run this action on multiple workers on a single machine at the same time. This input is available for the script as `EMULATOR_PORT` enviromental variable. This port is automatically used by android device related tasks in gradle |
 | `emulator-options` | Optional | See below | Command-line options used when launching the emulator (replacing all default options) - e.g. `-no-window -no-snapshot -camera-back emulated`. |
 | `disable-animations` | Optional | `true` | Whether to disable animations - `true` or `false`. |
 | `disable-spellchecker` | Optional | `false` | Whether to disable spellchecker - `true` or `false`. |
@@ -242,5 +269,9 @@ These are some of the open-source projects using (or used) **Android Emulator Ru
 - [ACRA/acra](https://github.com/ACRA/acra/blob/master/.github/workflows/test.yml)
 - [bitfireAT/davx5-ose](https://github.com/bitfireAT/davx5-ose/blob/dev-ose/.github/workflows/test-dev.yml)
 - [robolectric/robolectric](https://github.com/robolectric/robolectric/blob/master/.github/workflows/tests.yml)
+- [home-assistant/android](https://github.com/home-assistant/android/blob/master/.github/workflows/pr.yml)
+- [composablehorizons/compose-unstyled](https://github.com/composablehorizons/compose-unstyled/tree/main/.github/workflows)
+- [f3d-app/f3d-android](https://github.com/f3d-app/f3d-android/blob/master/.github/workflows/ci.yml)
+- [freeorion/freeorion](https://github.com/freeorion/freeorion/blob/master/.github/workflows/_build-android.yml)
 
 If you are using **Android Emulator Runner** and want your project included in the list, please feel free to open a pull request.

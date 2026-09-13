@@ -1,8 +1,6 @@
 import * as core from '@actions/core';
 import { installAndroidSdk } from './sdk-installer';
 import {
-  checkApiLevel,
-  checkTarget,
   checkArch,
   checkDisableAnimations,
   checkEmulatorBuild,
@@ -12,14 +10,18 @@ import {
   checkChannel,
   checkEnableHardwareKeyboard,
   checkDiskSize,
+  checkPort,
+  playstoreTargetSubstitution,
+  MIN_PORT,
 } from './input-validator';
-import { launchEmulator, killEmulator } from './emulator-manager';
+import { createAvd, launchEmulator, killEmulator } from './emulator-manager';
 import * as exec from '@actions/exec';
 import { parseScript } from './script-parser';
 import { getChannelId } from './channel-id-mapper';
 import { accessSync, constants } from 'fs';
 
 async function run() {
+  let port: number = MIN_PORT;
   try {
     console.log(`::group::Configure emulator`);
     let linuxSupportKVM = false;
@@ -31,7 +33,7 @@ async function run() {
           linuxSupportKVM = true;
         } catch {
           console.warn(
-            `You're running a Linux VM where hardware acceleration is not available. Please consider using a macOS VM instead to take advantage of native hardware acceleration support provided by HAXM.`
+            `You're running a Linux VM where hardware acceleration is not available. Please consider using a macOS VM instead to take advantage of native hardware acceleration support provided by HAXM.`,
           );
         }
       } else {
@@ -41,13 +43,16 @@ async function run() {
 
     // API level of the platform and system image
     const apiLevel = core.getInput('api-level', { required: true });
-    checkApiLevel(apiLevel);
     console.log(`API level: ${apiLevel}`);
 
+    let systemImageApiLevel = core.getInput('system-image-api-level');
+    if (!systemImageApiLevel) {
+      systemImageApiLevel = apiLevel;
+    }
+    console.log(`System image API level: ${systemImageApiLevel}`);
+
     // target of the system image
-    const targetInput = core.getInput('target');
-    const target = targetInput == 'playstore' ? 'google_apis_playstore' : targetInput;
-    checkTarget(target);
+    const target = playstoreTargetSubstitution(core.getInput('target'));
     console.log(`target: ${target}`);
 
     // CPU architecture of the system image
@@ -92,6 +97,11 @@ async function run() {
     // Emulator boot timeout seconds
     const emulatorBootTimeout = parseInt(core.getInput('emulator-boot-timeout'), 10);
     console.log(`Emulator boot timeout: ${emulatorBootTimeout}`);
+
+    // Emulator port to use
+    port = parseInt(core.getInput('emulator-port'), 10);
+    checkPort(port);
+    console.log(`emulator port: ${port}`);
 
     // emulator options
     const emulatorOptions = core.getInput('emulator-options').trim();
@@ -177,7 +187,10 @@ async function run() {
     console.log(`::endgroup::`);
 
     // install SDK
-    await installAndroidSdk(apiLevel, target, arch, channelId, emulatorBuild, ndkVersion, cmakeVersion);
+    await installAndroidSdk(apiLevel, systemImageApiLevel, target, arch, channelId, emulatorBuild, ndkVersion, cmakeVersion);
+
+    // create AVD
+    await createAvd(arch, avdName, cores, diskSize, enableHardwareKeyboard, forceAvdCreation, heapSize, profile, ramSize, sdcardPathOrSize, systemImageApiLevel, target);
 
     // execute pre emulator launch script if set
     if (preEmulatorLaunchScripts !== undefined) {
@@ -197,25 +210,7 @@ async function run() {
     }
 
     // launch an emulator
-    await launchEmulator(
-      apiLevel,
-      target,
-      arch,
-      profile,
-      cores,
-      ramSize,
-      heapSize,
-      sdcardPathOrSize,
-      diskSize,
-      avdName,
-      forceAvdCreation,
-      emulatorBootTimeout,
-      emulatorOptions,
-      disableAnimations,
-      disableSpellchecker,
-      disableLinuxHardwareAcceleration,
-      enableHardwareKeyboard
-    );
+    await launchEmulator(avdName, disableAnimations, disableLinuxHardwareAcceleration, disableSpellchecker, emulatorBootTimeout, emulatorOptions, enableHardwareKeyboard, port);
 
     // execute the custom script
     try {
@@ -226,17 +221,19 @@ async function run() {
       for (const script of scripts) {
         // use array form to avoid various quote escaping problems
         // caused by exec(`sh -c "${script}"`)
-        await exec.exec('sh', ['-c', script]);
+        await exec.exec('sh', ['-c', script], {
+          env: { ...process.env, EMULATOR_PORT: `${port}`, ANDROID_SERIAL: `emulator-${port}` },
+        });
       }
     } catch (error) {
       core.setFailed(error instanceof Error ? error.message : (error as string));
     }
 
     // finally kill the emulator
-    await killEmulator();
+    await killEmulator(port);
   } catch (error) {
     // kill the emulator so the action can exit
-    await killEmulator();
+    await killEmulator(port);
     core.setFailed(error instanceof Error ? error.message : (error as string));
   }
 }

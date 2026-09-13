@@ -4,24 +4,30 @@ import * as io from '@actions/io';
 import * as tc from '@actions/tool-cache';
 import * as fs from 'fs';
 
-const BUILD_TOOLS_VERSION = '34.0.0';
-// SDK command-line tools 11.0
-const CMDLINE_TOOLS_URL_MAC = 'https://dl.google.com/android/repository/commandlinetools-mac-10406996_latest.zip';
-const CMDLINE_TOOLS_URL_LINUX = 'https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip';
+const BUILD_TOOLS_VERSION = '37.0.0';
+// SDK command-line tools 23.0
+const CMDLINE_TOOLS_VERSION = '16111833';
+const CMDLINE_TOOLS_URL_MAC = `https://dl.google.com/android/repository/commandlinetools-mac_x86_64-${CMDLINE_TOOLS_VERSION}_latest.zip`;
+const CMDLINE_TOOLS_URL_LINUX = `https://dl.google.com/android/repository/commandlinetools-linux-${CMDLINE_TOOLS_VERSION}_latest.zip`;
 
 /**
  * Installs & updates the Android SDK for the macOS platform, including SDK platform for the chosen API level, latest build tools, platform tools, Android Emulator,
  * and the system image for the chosen API level, CPU arch, and target.
  */
-export async function installAndroidSdk(apiLevel: string, target: string, arch: string, channelId: number, emulatorBuild?: string, ndkVersion?: string, cmakeVersion?: string): Promise<void> {
+export async function installAndroidSdk(
+  apiLevel: string,
+  systemImageApiLevel: String,
+  target: string,
+  arch: string,
+  channelId: number,
+  emulatorBuild?: string,
+  ndkVersion?: string,
+  cmakeVersion?: string,
+): Promise<void> {
   try {
     console.log(`::group::Install Android SDK`);
     const isOnMac = process.platform === 'darwin';
     const isArm = process.arch === 'arm64';
-
-    if (!isOnMac) {
-      await exec.exec(`sh -c \\"sudo chown $USER:$USER ${process.env.ANDROID_HOME} -R`);
-    }
 
     const cmdlineToolsPath = `${process.env.ANDROID_HOME}/cmdline-tools`;
     if (!fs.existsSync(cmdlineToolsPath)) {
@@ -36,6 +42,7 @@ export async function installAndroidSdk(apiLevel: string, target: string, arch: 
     core.addPath(`${cmdlineToolsPath}/latest:${cmdlineToolsPath}/latest/bin:${process.env.ANDROID_HOME}/platform-tools`);
 
     // set standard AVD path
+    await io.mkdirP(`${process.env.HOME}/.android/avd`);
     core.exportVariable('ANDROID_AVD_HOME', `${process.env.HOME}/.android/avd`);
 
     // accept all Android SDK licenses
@@ -69,7 +76,7 @@ export async function installAndroidSdk(apiLevel: string, target: string, arch: 
       await io.rmRF('emulator.zip');
     }
     console.log('Installing system images.');
-    await exec.exec(`sh -c \\"sdkmanager --install 'system-images;android-${apiLevel};${target};${arch}' --channel=${channelId} > /dev/null"`);
+    await exec.exec(`sh -c \\"sdkmanager --install 'system-images;android-${systemImageApiLevel};${target};${arch}' --channel=${channelId} > /dev/null"`);
 
     if (ndkVersion) {
       console.log(`Installing NDK ${ndkVersion}.`);

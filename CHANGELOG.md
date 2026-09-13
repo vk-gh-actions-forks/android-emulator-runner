@@ -1,5 +1,53 @@
 # Change Log
 
+## Unreleased
+
+* Update SDK command-line tools to `23.0`. - [#492](https://github.com/ReactiveCircus/android-emulator-runner/pull/492)
+
+## v2.38.0
+
+* Update SDK build tools to `37.0.0`. - [#475](https://github.com/ReactiveCircus/android-emulator-runner/pull/475)
+
+## v2.37.0
+
+* Update SDK build tools to `36.0.0`, update SDK command-line tools to `20.0`. - [#467](https://github.com/ReactiveCircus/android-emulator-runner/pull/467)
+* Run action on Node 24. - [#466](https://github.com/ReactiveCircus/android-emulator-runner/pull/466)
+* Update Node and npm packages. - [#466](https://github.com/ReactiveCircus/android-emulator-runner/pull/466)
+
+## v2.36.0
+
+* Remove `--abi` option to better support 16-KB-based system images (#456).
+
+
+## v2.35.0
+
+* Optimize config.ini updates and efficiency improvements report (#436).
+* Fix `pre-emulator-launch-script` (#439).
+* Allow `google_apis_ps16k` as a valid target (#440).
+
+## v2.34.0
+
+* Allow arbitrary value for `api-level` such as `Baklava` and `35-ext15`. - [428](https://github.com/ReactiveCircus/android-emulator-runner/pull/428)
+* Add option to specify `system-image-api-level` to use a system image with a different API level than the platform. - [428](https://github.com/ReactiveCircus/android-emulator-runner/pull/428)
+* Support automotive and desktop targets: `android-automotive`, `android-automotive-playstore`, `android-desktop`. - [428](https://github.com/ReactiveCircus/android-emulator-runner/pull/428)
+
+## v2.33.0
+
+* Fix missing AVD directory in `ubuntu-24.04` runner. - [415](https://github.com/ReactiveCircus/android-emulator-runner/pull/415)
+* Update SDK build tools to `35.0.0`, update SDK command-line tools to `16.0`. - [#356](https://github.com/ReactiveCircus/android-emulator-runner/pull/356)
+* Stop changing owner of the SDK directory. - [406](https://github.com/ReactiveCircus/android-emulator-runner/pull/406) [#409](https://github.com/ReactiveCircus/android-emulator-runner/pull/409)
+* Upgrade to latest npm dependencies. - [#401](https://github.com/ReactiveCircus/android-emulator-runner/pull/401)
+
+## v2.32.0
+
+* Add `port` parameter for customizing the emulator port to use. - [#383](https://github.com/ReactiveCircus/android-emulator-runner/pull/383)
+
+
+## v2.31.0
+
+* Support setting `VanillaIceCream` as `api-level`. - [#378](https://github.com/ReactiveCircus/android-emulator-runner/pull/378)
+* Install `platforms` for the specified `api-level`. - [#384](https://github.com/ReactiveCircus/android-emulator-runner/pull/384)
+
 ## v2.30.1
 
 * Run action on Node 20. - [#371](https://github.com/ReactiveCircus/android-emulator-runner/pull/371)
